@@ -28,7 +28,7 @@ Usage: gounoconv <command> [options]
         -convert-to CONVERT_TO
                 The file type/extension of the output file (ex: pdf).
         -input-filter INPUT_FILTER
-                The LibreOffice input filter to use (ex 'writer8').
+                The LibreOffice input filter to use (ex: writer8).
         -output-filter OUTPUT_FILTER, -filter OUTPUT_FILTER
                 The export filter to use when converting.
         -filter-options FILTER_OPTIONS, -filter-option FILTER_OPTIONS
@@ -48,7 +48,7 @@ Usage: gounoconv <command> [options]
     -port PORT  The port used by the server.
     -protocol {http,https}
                 The protocol used by the server.
-    -host-location {auto,remote,local}
+    -location {auto,remote,local}, -host-location {auto,remote,local}
                 The host location determines the handling of files.
                 If you run the client on the same machine as the server,
                 it can be set to local, and the files are sent as paths.

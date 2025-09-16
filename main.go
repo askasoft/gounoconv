@@ -14,6 +14,7 @@ import (
 	"github.com/askasoft/pango/gog"
 	"github.com/askasoft/pango/iox"
 	"github.com/askasoft/pango/log"
+	"github.com/askasoft/pango/str"
 )
 
 func usage() {
@@ -27,7 +28,7 @@ Usage: %s <command> [options]
         -convert-to CONVERT_TO
                 The file type/extension of the output file (ex: pdf).
         -input-filter INPUT_FILTER
-                The LibreOffice input filter to use (ex 'writer8').
+                The LibreOffice input filter to use (ex: writer8).
         -output-filter OUTPUT_FILTER, -filter OUTPUT_FILTER
                 The export filter to use when converting.
         -filter-options FILTER_OPTIONS, -filter-option FILTER_OPTIONS
@@ -47,7 +48,7 @@ Usage: %s <command> [options]
     -port PORT  The port used by the server.
     -protocol {http,https}
                 The protocol used by the server.
-    -host-location {auto,remote,local}
+    -location {auto,remote,local}, -host-location {auto,remote,local}
                 The host location determines the handling of files.
                 If you run the client on the same machine as the server,
                 it can be set to local, and the files are sent as paths.
@@ -64,7 +65,9 @@ func options(uo *unoclient.Option) []unoclient.OptionBuilder {
 	return []unoclient.OptionBuilder{
 		unoclient.WithLocal(uo.Local),
 		unoclient.WithConvertTo(uo.ConvertTo),
+		unoclient.WithInFilterName(uo.InFilterName),
 		unoclient.WithFilterName(uo.FilterName),
+		unoclient.WithFilterOptions(uo.FilterOptions...),
 		unoclient.WithUpdateIndex(uo.UpdateIndex),
 		unoclient.WithFileType(uo.FileType),
 	}
@@ -104,24 +107,28 @@ func writeFile(file string, data []byte) {
 
 func main() {
 	var (
-		debug    bool
-		host     string
-		port     int
-		protocol string
-		location string
-		uo       unoclient.Option
+		debug     bool
+		host      string
+		port      int
+		protocol  string
+		location  string
+		filteropt string
+		uo        unoclient.Option
 	)
 
 	flag.BoolVar(&debug, "debug", false, "")
 	flag.StringVar(&host, "host", "localhost", "")
 	flag.IntVar(&port, "port", 2003, "")
 	flag.StringVar(&protocol, "protocol", "http", "")
+	flag.StringVar(&location, "location", "auto", "")
 	flag.StringVar(&location, "host-location", "auto", "")
 
 	flag.StringVar(&uo.ConvertTo, "convert-to", "", "")
 	flag.StringVar(&uo.InFilterName, "input-filter", "", "")
 	flag.StringVar(&uo.FilterName, "output-filter", "", "")
 	flag.StringVar(&uo.FilterName, "filter", "", "")
+	flag.StringVar(&filteropt, "filter-options", "", "")
+	flag.StringVar(&filteropt, "filter-option", "", "")
 	flag.BoolVar(&uo.UpdateIndex, "update-index", false, "")
 
 	flag.StringVar(&uo.FileType, "file-type", "", "")
@@ -143,6 +150,7 @@ func main() {
 	default:
 		uo.Local = asg.Contains([]string{"127.0.0.1", "localhost"}, host)
 	}
+	uo.FilterOptions = str.FieldsByte(filteropt, ',')
 
 	uc := unoclient.UnoClient{
 		Endpoint: fmt.Sprintf("%s://%s:%d", protocol, host, port),
