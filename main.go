@@ -43,7 +43,6 @@ Usage: %s <command> [options]
                 The file type/extension of the result file (ex: pdf).
   <general options>:
     -h | -help  Print this help message.
-    -debug      Print the debug log.
     -host HOST  The host the server runs on.
     -port PORT  The port used by the server.
     -protocol {http,https}
@@ -55,6 +54,8 @@ Usage: %s <command> [options]
                 If they are different machines, it is remote and the files
                 are sent as binary data. Default is auto, and it will send
                 the file as a path if the host is 127.0.0.1 or localhost.
+    -debug      Print the debug log.
+    -quiet      Do not print information message.
   <notes>:
     Use - for stdin or stdout.
 `
@@ -105,9 +106,18 @@ func writeFile(file string, data []byte) {
 	}
 }
 
+var quiet bool
+
+func printf(format string, args ...any) {
+	if !quiet {
+		fmt.Printf(format, args...)
+	}
+}
+
 func main() {
 	var (
 		debug     bool
+		quiet     bool
 		host      string
 		port      int
 		protocol  string
@@ -117,6 +127,7 @@ func main() {
 	)
 
 	flag.BoolVar(&debug, "debug", false, "")
+	flag.BoolVar(&quiet, "quiet", false, "")
 	flag.StringVar(&host, "host", "localhost", "")
 	flag.IntVar(&port, "port", 2003, "")
 	flag.StringVar(&protocol, "protocol", "http", "")
@@ -140,7 +151,7 @@ func main() {
 	cw.SetFormat("%t [%p] - %m%n%T")
 
 	log.SetWriter(cw)
-	log.SetLevel(gog.If(debug, log.LevelDebug, log.LevelInfo))
+	log.SetLevel(gog.If(debug, log.LevelTrace, log.LevelInfo))
 
 	switch location {
 	case "local":
@@ -178,8 +189,12 @@ func main() {
 			fmt.Fprintf(os.Stderr, "Missing argument <outfile> !\n")
 			os.Exit(1)
 		}
+		if outFile == "-" && uo.ConvertTo == "" {
+			fmt.Fprintf(os.Stderr, "Missing -convert-to option !\n")
+			os.Exit(1)
+		}
 
-		fmt.Printf("Convert %s --> %s ... ", inFile, outFile)
+		printf("Convert %s --> %s ... ", inFile, outFile)
 		if inFile == "-" || outFile == "-" {
 			inData := readFile(inFile)
 
@@ -197,7 +212,7 @@ func main() {
 				os.Exit(1)
 			}
 		}
-		fmt.Println("OK.")
+		printf("OK.\n")
 	case "compare":
 		oldFile, newFile, outFile := flag.Arg(1), flag.Arg(2), flag.Arg(3)
 		if oldFile == "" {
@@ -213,7 +228,7 @@ func main() {
 			os.Exit(1)
 		}
 
-		fmt.Printf("Compare '%s' '%s' --> %s ... ", oldFile, newFile, outFile)
+		printf("Compare '%s' '%s' --> %s ... ", oldFile, newFile, outFile)
 		if oldFile == "-" || newFile == "-" || outFile == "-" {
 			oldData := readFile(oldFile)
 			newData := readFile(newFile)
@@ -232,7 +247,7 @@ func main() {
 				os.Exit(1)
 			}
 		}
-		fmt.Println("OK.")
+		printf("OK.\n")
 	default:
 		fmt.Fprintf(os.Stderr, "Invalid command %q\n\n", arg)
 		usage()

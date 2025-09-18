@@ -43,7 +43,6 @@ Usage: gounoconv <command> [options]
                 The file type/extension of the result file (ex: pdf).
   <general options>:
     -h | -help  Print this help message.
-    -debug      Print the debug log.
     -host HOST  The host the server runs on.
     -port PORT  The port used by the server.
     -protocol {http,https}
@@ -55,6 +54,8 @@ Usage: gounoconv <command> [options]
                 If they are different machines, it is remote and the files
                 are sent as binary data. Default is auto, and it will send
                 the file as a path if the host is 127.0.0.1 or localhost.
+    -debug      Print the debug log.
+    -quiet      Do not print information message.
   <notes>:
     Use - for stdin or stdout.
 ```
