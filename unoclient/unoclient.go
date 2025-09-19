@@ -2,6 +2,7 @@ package unoclient
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"path/filepath"
 	"sort"
@@ -13,14 +14,19 @@ import (
 	"github.com/askasoft/pango/net/xmlrpc"
 )
 
+var (
+	ErrMissingConvertTo = errors.New("unoclient: missing option convert-to")
+	ErrMissingFileType  = errors.New("unoclient: missing option file-type")
+)
+
 type Option struct {
 	Local bool // is the unoserver runs on local machine
 
+	UpdateIndex   bool     // convert option: Updates the indexes before conversion. Can be time consuming.
+	InFilterName  string   // convert option: The LibreOffice input filter to use (ex: 'writer8').
 	ConvertTo     string   // convert option: The file type/extension of the output file (ex: pdf)
 	FilterName    string   // convert option: The export filter to use when converting
 	FilterOptions []string // convert option: The Export filter options, in name=value format
-	UpdateIndex   bool     // convert option: Updates the indexes before conversion. Can be time consuming.
-	InFilterName  string   // convert option: The LibreOffice input filter to use (ex: 'writer8').
 
 	FileType string // compare option: The file type/extension of the result file (ex: pdf).
 }
@@ -29,20 +35,12 @@ func (o *Option) param(v string) any {
 	return gog.If(v == "", nil, any(v))
 }
 
-func (o *Option) convert_to() any {
-	return o.param(o.ConvertTo)
-}
-
 func (o *Option) filter_name() any {
 	return o.param(o.FilterName)
 }
 
 func (o *Option) infilter_name() any {
 	return o.param(o.InFilterName)
-}
-
-func (o *Option) file_type() any {
-	return o.param(o.FileType)
 }
 
 type OptionBuilder func(*Option)
@@ -140,8 +138,13 @@ func (uc *UnoClient) Info(ctx context.Context) (info UnoInfo, err error) {
 func (uc *UnoClient) Convert(ctx context.Context, inData []byte, obs ...OptionBuilder) (outData []byte, err error) {
 	op := buildOption(obs...)
 
+	if op.ConvertTo == "" {
+		err = ErrMissingConvertTo
+		return
+	}
+
 	err = uc.call(ctx, "convert", &outData, nil, inData, nil,
-		op.convert_to(), op.filter_name(), op.FilterOptions, op.UpdateIndex, op.infilter_name())
+		op.ConvertTo, op.filter_name(), op.FilterOptions, op.UpdateIndex, op.infilter_name())
 
 	return
 }
@@ -156,21 +159,25 @@ func (uc *UnoClient) ConvertFile(ctx context.Context, inFile, outFile string, ob
 
 	op := buildOption(obs...)
 
+	if op.ConvertTo == "" {
+		op.ConvertTo = strings.TrimLeft(filepath.Ext(outFile), ".")
+	}
+	if op.ConvertTo == "" {
+		err = ErrMissingConvertTo
+		return
+	}
+
 	if op.Local {
 		inPath, outPath = inFile, outFile
 	} else {
 		inData, err = fsu.ReadFile(inFile)
 		if err != nil {
-			return err
+			return
 		}
 	}
 
-	if op.ConvertTo == "" {
-		op.ConvertTo = strings.TrimLeft(filepath.Ext(outFile), ".")
-	}
-
 	err = uc.call(ctx, "convert", &outData, inPath, inData, outPath,
-		op.convert_to(), op.filter_name(), op.FilterOptions, op.UpdateIndex, op.infilter_name())
+		op.ConvertTo, op.filter_name(), op.FilterOptions, op.UpdateIndex, op.infilter_name())
 
 	if err == nil && !op.Local {
 		err = fsu.WriteFile(outFile, outData, 0660)
@@ -181,8 +188,12 @@ func (uc *UnoClient) ConvertFile(ctx context.Context, inFile, outFile string, ob
 func (uc *UnoClient) Compare(ctx context.Context, oldData, newData []byte, obs ...OptionBuilder) (outData []byte, err error) {
 	op := buildOption(obs...)
 
-	err = uc.call(ctx, "compare", &outData, nil, oldData, nil, newData, nil, op.file_type())
+	if op.FileType == "" {
+		err = ErrMissingFileType
+		return
+	}
 
+	err = uc.call(ctx, "compare", &outData, nil, oldData, nil, newData, nil, op.FileType)
 	return
 }
 
@@ -198,6 +209,14 @@ func (uc *UnoClient) CompareFile(ctx context.Context, oldFile, newFile, outFile 
 
 	op := buildOption(obs...)
 
+	if op.FileType == "" {
+		op.FileType = strings.TrimLeft(filepath.Ext(outFile), ".")
+	}
+	if op.FileType == "" {
+		err = ErrMissingFileType
+		return
+	}
+
 	if op.Local {
 		oldPath, newPath, outPath = oldFile, newFile, outFile
 	} else {
@@ -212,11 +231,7 @@ func (uc *UnoClient) CompareFile(ctx context.Context, oldFile, newFile, outFile 
 		}
 	}
 
-	if op.FileType == "" {
-		op.FileType = strings.TrimLeft(filepath.Ext(outFile), ".")
-	}
-
-	err = uc.call(ctx, "compare", &outData, oldPath, oldData, newPath, newData, outPath, op.file_type())
+	err = uc.call(ctx, "compare", &outData, oldPath, oldData, newPath, newData, outPath, op.FileType)
 
 	if err == nil && !op.Local {
 		err = fsu.WriteFile(outFile, outData, 0660)
