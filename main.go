@@ -57,7 +57,7 @@ Usage: %s <command> [options]
     -debug      Print the debug log.
     -quiet      Do not print information message.
   <notes>:
-    Use - for stdin or stdout.
+    * Use - for stdin or stdout.
 `
 	fmt.Printf(help, filepath.Base(os.Args[0]))
 }

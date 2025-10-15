@@ -9,12 +9,10 @@ gounoconv
 gounoconv is a golang XML-RPC client tool for unoserver https://github.com/unoconv/unoserver .
 
 
-## Build
+## Install
 
 ```sh
-git clone https://github.com/askasoft/gounoconv.git
-
-go build
+go install github.com/askasoft/gounoconv@latest
 ```
 
 ## Usage
@@ -57,7 +55,7 @@ Usage: gounoconv <command> [options]
     -debug      Print the debug log.
     -quiet      Do not print information message.
   <notes>:
-    Use - for stdin or stdout.
+    * Use - for stdin or stdout.
 ```
 
 ## Example
