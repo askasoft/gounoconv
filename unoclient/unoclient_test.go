@@ -8,6 +8,7 @@ import (
 
 	"github.com/askasoft/pango/fsu"
 	"github.com/askasoft/pango/log"
+	"github.com/askasoft/pango/log/httplog"
 )
 
 func testClient(t *testing.T) *UnoClient {
@@ -17,9 +18,7 @@ func testClient(t *testing.T) *UnoClient {
 		t.Skip("UNOSERVER not set")
 	}
 
-	logger := log.GetLogger("UNO")
-
-	return &UnoClient{Endpoint: endpoint, Logger: logger}
+	return &UnoClient{Endpoint: endpoint, Transport: httplog.LoggingRoundTripper(log.GetLogger("UNO"))}
 }
 
 func TestInfo(t *testing.T) {

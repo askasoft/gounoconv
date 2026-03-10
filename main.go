@@ -14,6 +14,7 @@ import (
 	"github.com/askasoft/pango/gog"
 	"github.com/askasoft/pango/iox"
 	"github.com/askasoft/pango/log"
+	"github.com/askasoft/pango/log/httplog"
 	"github.com/askasoft/pango/str"
 )
 
@@ -164,8 +165,8 @@ func main() {
 	uo.FilterOptions = str.FieldsByte(filteropt, ',')
 
 	uc := unoclient.UnoClient{
-		Endpoint: fmt.Sprintf("%s://%s:%d", protocol, host, port),
-		Logger:   log.GetLogger("UNO"),
+		Endpoint:  fmt.Sprintf("%s://%s:%d", protocol, host, port),
+		Transport: httplog.LoggingRoundTripper(log.GetLogger("UNO")),
 	}
 
 	ops := options(&uo)
