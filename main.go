@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
+	"time"
 
 	"github.com/askasoft/gounoconv/unoclient"
 	"github.com/askasoft/pango/asg"
@@ -18,8 +20,42 @@ import (
 	"github.com/askasoft/pango/str"
 )
 
+// inject by go build
+var (
+	// Version app version inject by go build
+	Version string
+
+	// Revision app revision inject by go build
+	Revision string
+
+	// Buildtime app build time "2006-01-02T15:04:05Z" inject by go build
+	Buildtime string
+)
+
+var (
+	// BuildTime app build time
+	BuildTime time.Time
+)
+
+// init built-in variables on debug
+func init() {
+	if Buildtime == "" {
+		BuildTime = time.Now()
+	} else {
+		BuildTime, _ = time.ParseInLocation("2006-01-02T15:04:05Z", Buildtime, time.UTC)
+	}
+
+	if Revision == "" {
+		Revision = fmt.Sprintf("%x", BuildTime.Unix())
+	}
+
+	if Version == "" {
+		Version = "0.0.0"
+	}
+}
+
 func usage() {
-	help := `
+	help := `Unoclient %s.%s (%s) [%s %s/%s]
 Usage: %s <command> [options]
   <command>:
     info        Print unoserver information.
@@ -60,7 +96,7 @@ Usage: %s <command> [options]
   <notes>:
     * Use - for stdin or stdout.
 `
-	fmt.Printf(help, filepath.Base(os.Args[0]))
+	fmt.Printf(help, Version, Revision, BuildTime.Local(), runtime.Version(), runtime.GOOS, runtime.GOARCH, filepath.Base(os.Args[0]))
 }
 
 func options(uo *unoclient.Option) []unoclient.OptionBuilder {
@@ -107,14 +143,6 @@ func writeFile(file string, data []byte) {
 	}
 }
 
-var quiet bool
-
-func printf(format string, args ...any) {
-	if !quiet {
-		fmt.Printf(format, args...)
-	}
-}
-
 func main() {
 	var (
 		debug     bool
@@ -124,8 +152,14 @@ func main() {
 		protocol  string
 		location  string
 		filteropt string
-		uo        unoclient.Option
+		unocliopt unoclient.Option
 	)
+
+	printf := func(format string, args ...any) {
+		if !quiet {
+			fmt.Printf(format, args...)
+		}
+	}
 
 	flag.BoolVar(&debug, "debug", false, "")
 	flag.BoolVar(&quiet, "quiet", false, "")
@@ -135,15 +169,15 @@ func main() {
 	flag.StringVar(&location, "location", "auto", "")
 	flag.StringVar(&location, "host-location", "auto", "")
 
-	flag.StringVar(&uo.ConvertTo, "convert-to", "", "")
-	flag.StringVar(&uo.InFilterName, "input-filter", "", "")
-	flag.StringVar(&uo.FilterName, "output-filter", "", "")
-	flag.StringVar(&uo.FilterName, "filter", "", "")
+	flag.StringVar(&unocliopt.ConvertTo, "convert-to", "", "")
+	flag.StringVar(&unocliopt.InFilterName, "input-filter", "", "")
+	flag.StringVar(&unocliopt.FilterName, "output-filter", "", "")
+	flag.StringVar(&unocliopt.FilterName, "filter", "", "")
 	flag.StringVar(&filteropt, "filter-options", "", "")
 	flag.StringVar(&filteropt, "filter-option", "", "")
-	flag.BoolVar(&uo.UpdateIndex, "update-index", false, "")
+	flag.BoolVar(&unocliopt.UpdateIndex, "update-index", false, "")
 
-	flag.StringVar(&uo.FileType, "file-type", "", "")
+	flag.StringVar(&unocliopt.FileType, "file-type", "", "")
 
 	flag.CommandLine.Usage = usage
 	flag.Parse()
@@ -156,20 +190,20 @@ func main() {
 
 	switch location {
 	case "local":
-		uo.Local = true
+		unocliopt.Local = true
 	case "remote":
-		uo.Local = false
+		unocliopt.Local = false
 	default:
-		uo.Local = asg.Contains([]string{"127.0.0.1", "localhost"}, host)
+		unocliopt.Local = asg.Contains([]string{"127.0.0.1", "localhost"}, host)
 	}
-	uo.FilterOptions = str.FieldsByte(filteropt, ',')
+	unocliopt.FilterOptions = str.FieldsByte(filteropt, ',')
 
 	uc := unoclient.UnoClient{
 		Endpoint:  fmt.Sprintf("%s://%s:%d", protocol, host, port),
 		Transport: httplog.LoggingRoundTripper(log.GetLogger("UNO")),
 	}
 
-	ops := options(&uo)
+	ops := options(&unocliopt)
 
 	arg := flag.Arg(0)
 	switch arg {
@@ -190,7 +224,7 @@ func main() {
 			fmt.Fprintf(os.Stderr, "Missing argument <outfile> !\n")
 			os.Exit(1)
 		}
-		if outFile == "-" && uo.ConvertTo == "" {
+		if outFile == "-" && unocliopt.ConvertTo == "" {
 			fmt.Fprintf(os.Stderr, "Missing -convert-to option !\n")
 			os.Exit(1)
 		}

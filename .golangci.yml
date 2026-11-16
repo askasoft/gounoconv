@@ -47,7 +47,6 @@ linters:
         text: 'var-naming:'
       - linters:
           - misspell
-          - staticcheck
         path: ldt/profiles\.go
       - linters:
           - deadcode

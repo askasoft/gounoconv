@@ -1,3 +1,10 @@
+._*
+.#*
 .vscode
 .DS_Store
 /z
+/dist
+/unoclient
+/*.exe
+/resource.syso
+/versioninfo.json

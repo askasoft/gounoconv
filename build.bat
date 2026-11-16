@@ -1,0 +1,87 @@
+REM go install github.com/josephspurrier/goversioninfo/cmd/goversioninfo@latest
+
+SET GOARCH=amd64
+SET GOOS=windows
+SET GO111MODULE=on
+
+SET COMPANY=Askasoft LLC.
+SET PRODUCT=Unoclient
+SET EXENAME=%1
+if "%EXENAME%" == "" (
+	SET EXENAME=unoclient
+)
+SET VER_MAJOR=1
+SET VER_MINOR=0
+SET VER_PATCH=7
+
+FOR /F "tokens=* USEBACKQ" %%i IN (`powershell -Command "Get-Date -date (Get-Date).ToUniversalTime()-uformat %%Y-%%m-%%dT%%H:%%M:%%SZ"`) DO (
+	SET BUILD_TIME=%%i
+)
+
+SET YEAR=%BUILD_TIME:~0,4%
+SET VERSION=%VER_MAJOR%.%VER_MINOR%.%VER_PATCH%
+FOR /F "tokens=* USEBACKQ" %%i IN (`git rev-parse --short HEAD`) DO (
+	SET REVISION=%%i
+)
+
+SET /A VER_BUILD=0x%REVISION:~0,4%
+
+call :build .    %EXENAME%    "%PRODUCT%"    main.ico
+
+go test ./...
+
+EXIT /B %ERRORLEVEL%
+
+
+:build
+SET DIR=%1
+SET EXE=%2.exe
+SET PROD=%3
+SET ICON=%4
+(
+echo {
+echo 	"FixedFileInfo": {
+echo 		"FileVersion": {
+echo 			"Major": %VER_MAJOR%,
+echo 			"Minor": %VER_MINOR%,
+echo 			"Patch": %VER_PATCH%,
+echo 			"Build": %VER_BUILD%
+echo 		},
+echo 		"FileFlagsMask": "3f",
+echo 		"FileFlags ": "00",
+echo 		"FileOS": "040004",
+echo 		"FileType": "01",
+echo 		"FileSubType": "00"
+echo 	},
+echo 	"StringFileInfo": {
+echo 		"Comments": "",
+echo 		"CompanyName": "%COMPANY%",
+echo 		"FileDescription": "%PROD% %VERSION%.%REVISION%",
+echo 		"FileVersion": "",
+echo 		"InternalName": "",
+echo 		"LegalCopyright": "Copyright (c) %YEAR% %COMPANY%, All Rights Reserved",
+echo 		"LegalTrademarks": "",
+echo 		"OriginalFilename": "%EXE%",
+echo 		"PrivateBuild": "",
+echo 		"ProductName": "%PROD%",
+echo 		"ProductVersion": "%VERSION%.%REVISION%",
+echo 		"SpecialBuild": ""
+echo 	},
+echo 	"VarFileInfo": {
+echo 		"Translation": {
+echo 			"LangID": "0409",
+echo 			"CharsetID": "04B0"
+echo 		}
+echo 	},
+echo 	"IconPath": "%ICON%",
+echo 	"ManifestPath": ""
+echo }
+) > versioninfo.json
+
+go generate
+
+SET PKG=github.com/askasoft/gounoconv
+SET LDF=-X %PKG%.Version=%VERSION% -X %PKG%.Revision=%REVISION% -X %PKG%.Buildtime=%BUILD_TIME%
+
+go build -ldflags "%LDF%" -o %EXE% %DIR%
+:EXIT /B 0

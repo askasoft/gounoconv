@@ -1,4 +1,4 @@
-name: Create Release
+name: Tag Release
 
 on:
   push:
@@ -10,17 +10,41 @@ permissions:
   pull-requests: read
 
 jobs:
-  create_release:
-    name: Create Release
+  release:
     runs-on: ubuntu-latest
+    environment: build
+    env:
+      GO111MODULE: on
+      GOPROXY: https://proxy.golang.org
 
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v6
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup
+        uses: actions/setup-go@v7
+        with:
+          go-version-file: './go.mod'
+
+      - name: Lint
+        uses: golangci/golangci-lint-action@v9
+        with:
+          version: latest
+          args: --verbose
+
+      - name: Test
+        run: go test -covermode=atomic -coverprofile=coverage.out $(go list ./...)
+
+      - name: Build
+        run: |
+          mkdir dist
+          GOOS=windows GOARCH=amd64 ./build.sh dist/unoclient-windows-amd64
+          GOOS=linux GOARCH=amd64 ./build.sh dist/unoclient-linux-amd64
+          GOOS=linux GOARCH=arm64 ./build.sh dist/unoclient-linux-arm64
 
       - name: Generate Release Notes and Publish
         id: generate_release_notes
-        uses: release-drafter/release-drafter@v6
+        uses: release-drafter/release-drafter@v7
         with:
           config-name: 'release-drafter.yml'
           name: "Release ${{ github.ref_name }}"
@@ -29,3 +53,9 @@ jobs:
           prerelease: false
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload Assets
+        uses: softprops/action-gh-release@v3
+        with:
+          files: |
+            dist/*

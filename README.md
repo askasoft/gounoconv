@@ -9,6 +9,41 @@ gounoconv
 gounoconv is a golang XML-RPC client tool for unoserver https://github.com/unoconv/unoserver .
 
 
+### Prepare unoserver
+```sh
+sudo apt install -y python3-pip fonts-noto-cjk libreoffice
+#sudo pip3 install unoserver
+sudo apt install -y pipx libreoffice python3-uno
+
+sudo useradd -m -s /bin/bash unoserver
+sudo su - unoserver
+pipx ensurepath
+source ~/.bashrc
+pipx install --system-site-packages unoserver
+which unoserver
+
+echo '
+[Unit]
+Description = Unoserver for document conversions
+Documentation = https://github.com/unoconv/unoserver
+After = syslog.target network.target local-fs.target
+
+[Service]
+Type = simple
+ExecStart = /home/unoserver/.local/bin/unoserver --interface 0.0.0.0 --uno-interface 127.0.0.1
+TimeoutStopSec = 5
+User = unoserver
+Group = unoserver
+
+[Install]
+WantedBy = multi-user.target
+' | sudo tee /usr/lib/systemd/system/unoserver.service
+
+sudo systemctl daemon-reload
+sudo systemctl enable unoserver
+sudo systemctl start unoserver
+```
+
 ## Install
 
 ```sh
@@ -17,7 +52,7 @@ go install github.com/askasoft/gounoconv@latest
 
 ## Usage
 ```
-Usage: gounoconv <command> [options]
+Usage: unoclient <command> [options]
   <command>:
     info        Print unoserver information.
     convert <infile> <outfile>
@@ -60,9 +95,9 @@ Usage: gounoconv <command> [options]
 
 ## Example
 ```sh
-./gounoconv -host 127.0.0.1  info
+./unoclient -host 127.0.0.1  info
 
-./gounoconv -host 127.0.0.1  convert  hello.docx  hello.pdf
+./unoclient -host 127.0.0.1  convert  hello.docx  hello.pdf
 
-./gounoconv -host 127.0.0.1  compare  old.docx  new.docx  out.pdf
+./unoclient -host 127.0.0.1  compare  old.docx  new.docx  out.pdf
 ```
